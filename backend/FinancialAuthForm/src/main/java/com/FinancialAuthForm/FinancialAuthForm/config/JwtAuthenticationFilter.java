@@ -46,6 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       return;
     }
     final String authHeader = request.getHeader("Authorization");
+
     final String jwt;
     final String userEmail;
     if (authHeader == null ||!authHeader.startsWith("Bearer ")) {
@@ -55,18 +56,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     logger.info("\n\nFirst Checks\n\n");
-
+    logger.info("AuthHeader = {}", authHeader.substring(0));
     jwt = authHeader.substring(7);
     userEmail = jwtService.extractUsername(jwt);
+    logger.info("\nPass1\n");
     if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+      logger.info("\nPass2\n");
       UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
-      var isTokenValid = tokenRepository.findByToken(jwt)
-          .map(t -> !t.isExpired() && !t.isRevoked())
-          .orElse(false);
+
 
       logger.info("\n\nToken is being checked\n\n");
 
-      if (jwtService.isTokenValid(jwt, userDetails) && isTokenValid) {
+      if (jwtService.isTokenValid(jwt, userDetails)) {
 
         logger.info("\n\nToken is Valid\n\n");
 
@@ -80,7 +81,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         );
         SecurityContextHolder.getContext().setAuthentication(authToken);
       }
+      logger.info("\nfail1\n");
     }
+    logger.info("\nfail2\n");
     filterChain.doFilter(request, response);
+    logger.info("\nfail3\n");
   }
 }

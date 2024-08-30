@@ -24,10 +24,12 @@ public class AuthenticationController {
     private final LogoutService logoutService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthenticationResponse> register(
-            @RequestBody RegisterRequest request
+    public ResponseEntity<?> register(
+            @RequestBody RegisterRequest request,
+            HttpServletResponse response
     ) {
-        return ResponseEntity.ok(service.register(request));
+
+        return service.register(request);
     }
 
     @PostMapping("/authenticate")
@@ -38,6 +40,24 @@ public class AuthenticationController {
         AuthenticationResponse authResponse = service.authenticate(request);
 
         // Create a cookie to store the JWT token
+        Cookie jwtCookie = new Cookie("jwtToken", authResponse.getRefreshToken());
+        jwtCookie.setHttpOnly(true);  // Protect against XSS
+        jwtCookie.setMaxAge(24 * 60 * 60);  // 1 day expiration
+        jwtCookie.setPath("/");  // Set the path for which this cookie is valid
+
+        // Add the cookie to the response
+        response.addCookie(jwtCookie);
+        authResponse.setRefreshToken(null);
+
+        return ResponseEntity.ok(authResponse);
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<AuthenticationResponse> refreshToken(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) throws IOException {
+        AuthenticationResponse authResponse = service.refreshToken(request, response);
         Cookie jwtCookie = new Cookie("jwtToken", authResponse.getAccessToken());
         jwtCookie.setHttpOnly(true);  // Protect against XSS
         jwtCookie.setMaxAge(24 * 60 * 60);  // 1 day expiration
@@ -45,16 +65,7 @@ public class AuthenticationController {
 
         // Add the cookie to the response
         response.addCookie(jwtCookie);
-
         return ResponseEntity.ok(authResponse);
-    }
-
-    @PostMapping("/refresh-token")
-    public void refreshToken(
-            HttpServletRequest request,
-            HttpServletResponse response
-    ) throws IOException {
-        service.refreshToken(request, response);
     }
 
     @PostMapping("/logout")
